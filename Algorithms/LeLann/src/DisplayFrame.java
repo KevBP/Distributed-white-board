@@ -1,7 +1,7 @@
 import java.awt.*;
 import java.awt.event.*;
 import javax.swing.*;
-
+ 
 public class DisplayFrame {
 
     JFrame frame;
@@ -11,21 +11,21 @@ public class DisplayFrame {
     public DisplayFrame(int proc) {
 
         frame = new JFrame("Process " + proc);
-        frame.setLocation(200 + 100 * proc, 200 + 100 * proc);
-        frame.setAlwaysOnTop(true);
+	frame.setLocation(200+100*proc,200+100*proc);
+	frame.setAlwaysOnTop (true);
 
-        JPanel panel = new JPanel();
-        frame.getContentPane().add(panel);
+	JPanel panel = new JPanel();
+	frame.getContentPane().add(panel);
 
-        // Create initial text area
-        String empty = "     ";
-        size = empty.length();
+	// Create initial text area
+	String empty = "     ";
+	size = empty.length();
 
-        // The size of the text area must be adapted here
-        textArea = new JTextArea(empty, 10, 20);
-        textArea.setEditable(false);
+	// The size of the text area must be adapted here
+	textArea = new JTextArea(empty, 10, 20);
+	textArea.setEditable(false);
 
-        panel.add(textArea);
+	panel.add(textArea);
 
         //Display the window.
         frame.pack();
@@ -33,8 +33,9 @@ public class DisplayFrame {
     }
 
     public void display(String s) {
-        int nextSize = s.length();
-        textArea.replaceRange(s, 0, size);
-        size = nextSize;
+
+	int nextSize = s.length();
+	textArea.replaceRange(s, 0, size);
+	size = nextSize;
     }
 }
