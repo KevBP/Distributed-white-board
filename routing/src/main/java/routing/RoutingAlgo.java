@@ -3,6 +3,7 @@ package routing;
 import routing.message.Hello;
 import routing.message.LinkStateUpdate;
 import routing.message.RoutingMessage;
+import routing.message.SendToMessage;
 import routing.table.RoutingRecord;
 import routing.table.VisidiaRoutingTable;
 import visidia.simulation.SimulationAbortError;
@@ -12,30 +13,25 @@ import visidia.simulation.process.messages.Door;
 import visidia.simulation.process.messages.Message;
 import visidia.simulation.process.messages.MessagePacket;
 
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ThreadFactory;
-import java.util.concurrent.TimeUnit;
+import java.util.*;
+import java.util.concurrent.*;
 
 public class RoutingAlgo extends Algorithm {
 
+    private final transient Set<Integer> linkStateUpdateQueue = new HashSet<>();
+    private final List<BlockingQueue<Object>> messageQueues = new ArrayList<>();
     private VisidiaRoutingTable routingTable;
     private transient ScheduledExecutorService scheduledThreadPool;
-    private final transient Set<Integer> linkStateUpdateQueue = new HashSet<>();
-
 
     @Override
     public Object clone() {
-        //can't call super.clone thank to visidia api
+        //can't call super.clone thanks to visidia api
         return new RoutingAlgo();
     }
 
     @Override
     public void init() {
+        messageQueues.addAll(Collections.nCopies(getNetSize(), null));
         getMessageTypeList().add(RoutingMessage.ROUTING_MESSAGE_TYPE); // TODO
 
         System.out.println("----------------------------------------");
@@ -57,21 +53,55 @@ public class RoutingAlgo extends Algorithm {
         //Routing start here
 
         sendAll(new Hello(getId()));
-
-        try {
-            Thread.sleep(50_000);
-        } catch (InterruptedException e) {
-            e.printStackTrace();
+        if (getId() != 0) {
+            sendToNode(0, "coucou");
         }
+
+        /*if (getId() != 0){
+            sendToNode(0, "coucou2");
+        }*/
+
         //scheduledThreadPool.shutdown();
         try {
-            scheduledThreadPool.awaitTermination(15, TimeUnit.MINUTES);
+            scheduledThreadPool.awaitTermination(Long.MAX_VALUE, TimeUnit.DAYS);
         } catch (InterruptedException e) {
-            e.printStackTrace();
+            throw new SimulationAbortError();
         } finally {
             scheduledThreadPool.shutdownNow();
         }
 
+    }
+
+
+
+    public BlockingQueue<Object> getQueueForNode(int node) {
+        if (node < 0 || node >= getNetSize()) {
+            return null; //TODO exception ?
+        }
+        synchronized (messageQueues) {
+            BlockingQueue<Object> queue = messageQueues.get(node);
+            if (queue == null) {
+                queue = new LinkedBlockingQueue<>();
+                messageQueues.set(node, queue);
+            }
+            return queue;
+        }
+    }
+
+    public boolean isDataInQueue(int node) {
+        synchronized (messageQueues) {
+            BlockingQueue<Object> queue = messageQueues.get(node);
+            return queue != null && !queue.isEmpty();
+        }
+    }
+
+    public void sendAllQueueData(int node) {
+        BlockingQueue<Object> queue = getQueueForNode(node);
+        List<Object> buff = new ArrayList<>();
+        queue.drainTo(buff);
+        for (Object o : buff) {
+            sendToNode(node, o);
+        }
     }
 
     public Message receive(Door door, Criterion criterion) {
@@ -95,6 +125,23 @@ public class RoutingAlgo extends Algorithm {
         }
     }
 
+    private void sendToNode(int node, Object data) {
+        if (node < 0 || node >= getNetSize()) {
+            return; //TODO exception ?
+        }
+        RoutingRecord<Integer, Integer> record = routingTable.getRecord(node);
+        if (record == null) {
+            getQueueForNode(node).add(data);
+        } else {
+            sendTo(record.getDoor(), new SendToMessage(getId(), node, data));
+        }
+
+    }
+
+    public void onMessage(SendToMessage message) {
+        System.out.println(message);
+    }
+
     @SuppressWarnings("SynchronizeOnNonFinalField")
     class RoutingMessageListener implements Runnable {
         private volatile boolean stop;
@@ -112,6 +159,9 @@ public class RoutingAlgo extends Algorithm {
 
                             int from = (int) message.getData();
                             if (updateRouteTable(from, door.getNum(), 1)) {
+                                if (isDataInQueue(from)) {
+                                    sendAllQueueData(from);
+                                }
                                 synchronized (linkStateUpdateQueue) {
                                     for (int doorNbr = 0; doorNbr < getArity(); doorNbr++) {
                                         if (doorNbr != door.getNum()) {
@@ -121,9 +171,7 @@ public class RoutingAlgo extends Algorithm {
                                 }
                                 scheduledThreadPool.schedule(new SpreadLinkStateUpdate(), 500, TimeUnit.MILLISECONDS);
                             }
-
-                        }
-                        if (message instanceof LinkStateUpdate) {
+                        } else if (message instanceof LinkStateUpdate) {
                             VisidiaRoutingTable peerRoutingTable = (VisidiaRoutingTable) message.getData();
                             boolean updated = false;
                             int basePathWeight = 1;
@@ -137,6 +185,9 @@ public class RoutingAlgo extends Algorithm {
                                 Integer peerWeight = peerRecord != null ? peerRecord.getWeight() : null;
                                 if (peerWeight != null && basePathWeight + peerWeight < currentWeight &&
                                         updateRouteTable(node, door.getNum(), basePathWeight + peerWeight)) {
+                                    if (isDataInQueue(node)) {
+                                        sendAllQueueData(node);
+                                    }
                                     updated = true;
                                     synchronized (linkStateUpdateQueue) {
                                         for (int doorNbr = 0; doorNbr < getArity(); doorNbr++) {
@@ -150,7 +201,14 @@ public class RoutingAlgo extends Algorithm {
                             if (updated) {
                                 scheduledThreadPool.schedule(new SpreadLinkStateUpdate(), 750, TimeUnit.MILLISECONDS);
                             }
-
+                        } else if (message instanceof SendToMessage) {
+                            SendToMessage sendToMessage = (SendToMessage) message;
+                            if (sendToMessage.getTo() == getId()) {
+                                scheduledThreadPool.execute(() -> onMessage(sendToMessage));
+                            } else {
+                                int outDoor = routingTable.getRecord(sendToMessage.getTo()).getDoor();
+                                sendTo(outDoor, message);
+                            }
                         }
                         System.out.printf("i'm %d and i have this table: %s\n", getId(), routingTable);
 
@@ -181,10 +239,6 @@ public class RoutingAlgo extends Algorithm {
                     e.printStackTrace();
                 }
             }
-
-
         }
     }
-
-
 }
