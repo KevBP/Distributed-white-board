@@ -6,8 +6,8 @@ public class RELMessage extends NetMessage {
 
     private MsgType type;
 
-    public RELMessage(MsgType t) {
-        type = t;
+    public RELMessage() {
+        type = MsgType.REL;
     }
 
     @Override
@@ -17,7 +17,7 @@ public class RELMessage extends NetMessage {
 
     @Override
     public Message clone() {
-        return new RELMessage(type);
+        return new RELMessage();
     }
 
     @Override

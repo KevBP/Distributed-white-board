@@ -103,7 +103,7 @@ public class RicartAgrawala extends Algorithm {
         waitForCritical = true;
         hSC = h + 1;
         nbProcs = getArity();
-        REQMessage msg = new REQMessage(MsgType.REQ, hSC);
+        REQMessage msg = new REQMessage(hSC);
         sendAll(msg);
         System.out.println(procId + " - Ask for critical to all");
         while (nbProcs != 0) {
@@ -122,7 +122,7 @@ public class RicartAgrawala extends Algorithm {
             System.out.println(procId + " - Receive REQ from " + d + ", add to waiting list " + d);
         }
         else {
-            RELMessage msg = new RELMessage(MsgType.REL);
+            RELMessage msg = new RELMessage();
             sendTo(d, msg);
             System.out.println(procId + " - Receive REQ from " + d + ", send REL to " + d);
         }
@@ -140,7 +140,7 @@ public class RicartAgrawala extends Algorithm {
     // Rule 4
     void endCriticalUse() {
         inCritical = false;
-        RELMessage msg = new RELMessage(MsgType.REL);
+        RELMessage msg = new RELMessage();
         for (int node : waiting) {
             sendTo(node, msg);
         }
