@@ -1,5 +1,8 @@
 package routing.message;
 
+import routing.message.visitor.Visitor;
+import visidia.simulation.process.messages.Door;
+
 /**
  * Hello messages are used as a form of greeting.
  * <p>Allow a router to discover other adjacent routers on its local links and networks
@@ -29,5 +32,10 @@ public class Hello extends RoutingMessage {
     public Object clone() {
         //can't call super.clone thank to visidia api
         return new Hello(from);
+    }
+
+    @Override
+    public void accept(Visitor visitor, Door door) {
+        visitor.visit(this, door);
     }
 }

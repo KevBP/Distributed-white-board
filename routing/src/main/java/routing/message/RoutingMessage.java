@@ -1,14 +1,15 @@
 package routing.message;
 
+import routing.message.visitor.Visitable;
+import routing.message.visitor.Visitor;
+import visidia.simulation.process.messages.Door;
 import visidia.simulation.process.messages.Message;
 import visidia.simulation.process.messages.MessageType;
 
 import java.awt.*;
 
-/**
- * Created by duboi on 22/10/2015.
- */
-public abstract class RoutingMessage extends Message {
+
+public abstract class RoutingMessage extends Message implements Visitable{
     public final static MessageType ROUTING_MESSAGE_TYPE = new MessageType("routing", true, Color.BLUE);
 
     public RoutingMessage(){

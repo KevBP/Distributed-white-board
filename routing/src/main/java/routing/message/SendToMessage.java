@@ -1,5 +1,7 @@
 package routing.message;
 
+import routing.message.visitor.Visitor;
+import visidia.simulation.process.messages.Door;
 import visidia.simulation.process.messages.MessageType;
 
 import java.awt.*;
@@ -42,5 +44,10 @@ public class SendToMessage extends RoutingMessage {
     @Override
     public Object clone() {
         return new SendToMessage(from, to, data);
+    }
+
+    @Override
+    public void accept(Visitor visitor, Door door) {
+        visitor.visit(this, door);
     }
 }

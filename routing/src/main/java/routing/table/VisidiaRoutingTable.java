@@ -13,7 +13,7 @@ public class VisidiaRoutingTable implements RoutingTableInterface<Integer, Integ
 
     public VisidiaRoutingTable(int size) {
         this.size = size;
-        this.table = new ArrayList<>(Collections.nCopies(size, null));
+        this.table = new ArrayList<>(Collections.nCopies(size, (RoutingRecord<Integer, Integer>)null));
     }
     @Override
     public synchronized RoutingRecord<Integer, Integer> getRecord(Integer dest){
