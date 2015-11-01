@@ -16,11 +16,14 @@ import visidia.simulation.process.messages.MessagePacket;
 
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 public class RoutingAlgo extends Algorithm implements Visitor {
 
     private final transient Set<Integer> linkStateUpdateQueue = new HashSet<>();
     private final List<BlockingQueue<Object>> messageQueues = new ArrayList<>();
+    private final Lock routeTableReadUpdateLock = new ReentrantLock();
     private VisidiaRoutingTable routingTable;
     private transient ScheduledExecutorService scheduledThreadPool;
 
@@ -98,7 +101,7 @@ public class RoutingAlgo extends Algorithm implements Visitor {
         }
     }
 
-    public Message receive(Door door, Criterion criterion) {
+    public synchronized Message receive(Door door, Criterion criterion) {
         this.proc.runningControl();
         Message msg;
         try {
@@ -109,29 +112,35 @@ public class RoutingAlgo extends Algorithm implements Visitor {
         }
     }
 
-    @SuppressWarnings("SynchronizeOnNonFinalField")
     private boolean updateRouteTable(int from, int door, int weight) {
-        synchronized (routingTable) {
+        routeTableReadUpdateLock.lock();
+        try {
             RoutingRecord<Integer, Integer> originalRecord = routingTable.getRecord(from);
             RoutingRecord<Integer, Integer> record = new RoutingRecord<>(door, weight);
             routingTable.updateRoute(from, record);
             return originalRecord == null || !record.equals(originalRecord);
+        } finally {
+            routeTableReadUpdateLock.unlock();
         }
     }
 
-    @SuppressWarnings("SynchronizeOnNonFinalField")
     private void sendToNode(int node, Object data) {
         if (node < 0 || node >= getNetSize()) {
             return; //TODO exception ?
         }
-        RoutingRecord<Integer, Integer> record = routingTable.getRecord(node);
-        if (record == null) {
-            getQueueForNode(node).add(data);
-        } else if (record.getDoor() == null) { // loopback interface simulation
-            SendToMessage message = new SendToMessage(getId(), getId(), data);
-            pushSendToMessage(message);
-        } else {
-            sendTo(record.getDoor(), new SendToMessage(getId(), node, data));
+        routeTableReadUpdateLock.lock();
+        try {
+            RoutingRecord<Integer, Integer> record = routingTable.getRecord(node);
+            if (record == null) {
+                getQueueForNode(node).add(data);
+            } else if (record.getDoor() == null) { // loopback interface simulation
+                SendToMessage message = new SendToMessage(getId(), getId(), data);
+                pushSendToMessage(message);
+            } else {
+                sendTo(record.getDoor(), new SendToMessage(getId(), node, data));
+            }
+        } finally {
+            routeTableReadUpdateLock.unlock();
         }
     }
 
@@ -139,18 +148,26 @@ public class RoutingAlgo extends Algorithm implements Visitor {
     @Override
     public void visit(Hello message, Door door) {
         int from = (int) message.getData();
-        if (updateRouteTable(from, door.getNum(), 1)) {
-            if (isDataInQueue(from)) {
-                sendAllQueueData(from);
-            }
-            synchronized (linkStateUpdateQueue) {
+        boolean updated = false;
+        routeTableReadUpdateLock.lock();
+        try {
+            if (updateRouteTable(from, door.getNum(), 1)) {
+                updated = true;
+                if (isDataInQueue(from)) {
+                    sendAllQueueData(from);
+                }
                 for (int doorNbr = 0; doorNbr < getArity(); doorNbr++) {
                     if (doorNbr != door.getNum()) {
                         linkStateUpdateQueue.add(doorNbr);
                     }
+
                 }
             }
-            scheduledThreadPool.schedule(new SpreadLinkStateUpdate(), 500, TimeUnit.MILLISECONDS);
+        } finally {
+            routeTableReadUpdateLock.unlock();
+        }
+        if (updated) {
+            scheduledThreadPool.schedule(new SpreadLinkStateUpdate(), 750, TimeUnit.MILLISECONDS);
         }
     }
 
@@ -168,18 +185,23 @@ public class RoutingAlgo extends Algorithm implements Visitor {
             }
             RoutingRecord<Integer, Integer> peerRecord = peerRoutingTable.getRecord(node);
             Integer peerWeight = peerRecord != null ? peerRecord.getWeight() : null;
-            if (peerWeight != null && basePathWeight + peerWeight < currentWeight &&
-                    updateRouteTable(node, door.getNum(), basePathWeight + peerWeight)) {
-                updated = true;
-                if (isDataInQueue(node)) {
-                    sendAllQueueData(node);
-                }
-                synchronized (linkStateUpdateQueue) {
-                    for (int doorNbr = 0; doorNbr < getArity(); doorNbr++) {
-                        if (doorNbr != door.getNum()) {
-                            linkStateUpdateQueue.add(doorNbr);
+            if (peerWeight != null && basePathWeight + peerWeight < currentWeight) {
+                routeTableReadUpdateLock.lock();
+                try {
+                    if (updateRouteTable(node, door.getNum(), basePathWeight + peerWeight)) {
+                        updated = true;
+                        if (isDataInQueue(node)) {
+                            sendAllQueueData(node);
                         }
+                        for (int doorNbr = 0; doorNbr < getArity(); doorNbr++) {
+                            if (doorNbr != door.getNum()) {
+                                linkStateUpdateQueue.add(doorNbr);
+                            }
+                        }
+
                     }
+                } finally {
+                    routeTableReadUpdateLock.unlock();
                 }
             }
         }
@@ -247,17 +269,18 @@ public class RoutingAlgo extends Algorithm implements Visitor {
 
         @Override
         public void run() {
-            List<Integer> buff = new ArrayList<>();
-            synchronized (linkStateUpdateQueue) {
-                buff.addAll(linkStateUpdateQueue);
-                linkStateUpdateQueue.clear();
-            }
-            for (Integer door : buff) {
-                try {
-                    sendTo(door, new LinkStateUpdate((VisidiaRoutingTable) routingTable.clone()));
-                } catch (CloneNotSupportedException e) {
-                    e.printStackTrace();
+            routeTableReadUpdateLock.lock();
+            try {
+                for (Integer door : linkStateUpdateQueue) {
+                    try {
+                        sendTo(door, new LinkStateUpdate((VisidiaRoutingTable) routingTable.clone()));
+                    } catch (CloneNotSupportedException e) {
+                        e.printStackTrace();
+                    }
                 }
+                linkStateUpdateQueue.clear();
+            } finally {
+                routeTableReadUpdateLock.unlock();
             }
         }
     }
