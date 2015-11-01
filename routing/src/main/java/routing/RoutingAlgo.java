@@ -16,14 +16,12 @@ import visidia.simulation.process.messages.MessagePacket;
 
 import java.util.*;
 import java.util.concurrent.*;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
 
 public class RoutingAlgo extends Algorithm implements Visitor {
 
     private final transient Set<Integer> linkStateUpdateQueue = new HashSet<>();
     private final List<BlockingQueue<Object>> messageQueues = new ArrayList<>();
-    private final Lock routeTableReadUpdateLock = new ReentrantLock();
+    private final Object routeTableReadUpdateLock = new Object();
     private VisidiaRoutingTable routingTable;
     private transient ScheduledExecutorService scheduledThreadPool;
 
@@ -113,23 +111,21 @@ public class RoutingAlgo extends Algorithm implements Visitor {
     }
 
     private boolean updateRouteTable(int from, int door, int weight) {
-        routeTableReadUpdateLock.lock();
-        try {
+        synchronized (routeTableReadUpdateLock) {
             RoutingRecord<Integer, Integer> originalRecord = routingTable.getRecord(from);
             RoutingRecord<Integer, Integer> record = new RoutingRecord<>(door, weight);
             routingTable.updateRoute(from, record);
             return originalRecord == null || !record.equals(originalRecord);
-        } finally {
-            routeTableReadUpdateLock.unlock();
         }
+
+
     }
 
     private void sendToNode(int node, Object data) {
         if (node < 0 || node >= getNetSize()) {
             return; //TODO exception ?
         }
-        routeTableReadUpdateLock.lock();
-        try {
+        synchronized (routeTableReadUpdateLock) {
             RoutingRecord<Integer, Integer> record = routingTable.getRecord(node);
             if (record == null) {
                 getQueueForNode(node).add(data);
@@ -139,8 +135,6 @@ public class RoutingAlgo extends Algorithm implements Visitor {
             } else {
                 sendTo(record.getDoor(), new SendToMessage(getId(), node, data));
             }
-        } finally {
-            routeTableReadUpdateLock.unlock();
         }
     }
 
@@ -149,8 +143,7 @@ public class RoutingAlgo extends Algorithm implements Visitor {
     public void visit(Hello message, Door door) {
         int from = (int) message.getData();
         boolean updated = false;
-        routeTableReadUpdateLock.lock();
-        try {
+        synchronized (routeTableReadUpdateLock) {
             if (updateRouteTable(from, door.getNum(), 1)) {
                 updated = true;
                 if (isDataInQueue(from)) {
@@ -163,8 +156,6 @@ public class RoutingAlgo extends Algorithm implements Visitor {
 
                 }
             }
-        } finally {
-            routeTableReadUpdateLock.unlock();
         }
         if (updated) {
             scheduledThreadPool.schedule(new SpreadLinkStateUpdate(), 750, TimeUnit.MILLISECONDS);
@@ -177,17 +168,16 @@ public class RoutingAlgo extends Algorithm implements Visitor {
         VisidiaRoutingTable peerRoutingTable = (VisidiaRoutingTable) message.getData();
         boolean updated = false;
         int basePathWeight = 1;
-        for (Integer node : peerRoutingTable) {
-            RoutingRecord<Integer, Integer> currentRecord = routingTable.getRecord(node);
-            Integer currentWeight = currentRecord != null ? currentRecord.getWeight() : null;
-            if (currentWeight == null) {
-                currentWeight = Integer.MAX_VALUE;
-            }
-            RoutingRecord<Integer, Integer> peerRecord = peerRoutingTable.getRecord(node);
-            Integer peerWeight = peerRecord != null ? peerRecord.getWeight() : null;
-            if (peerWeight != null && basePathWeight + peerWeight < currentWeight) {
-                routeTableReadUpdateLock.lock();
-                try {
+        synchronized (routeTableReadUpdateLock) {
+            for (Integer node : peerRoutingTable) {
+                RoutingRecord<Integer, Integer> currentRecord = routingTable.getRecord(node);
+                Integer currentWeight = currentRecord != null ? currentRecord.getWeight() : null;
+                if (currentWeight == null) {
+                    currentWeight = Integer.MAX_VALUE;
+                }
+                RoutingRecord<Integer, Integer> peerRecord = peerRoutingTable.getRecord(node);
+                Integer peerWeight = peerRecord != null ? peerRecord.getWeight() : null;
+                if (peerWeight != null && basePathWeight + peerWeight < currentWeight) {
                     if (updateRouteTable(node, door.getNum(), basePathWeight + peerWeight)) {
                         updated = true;
                         if (isDataInQueue(node)) {
@@ -200,8 +190,6 @@ public class RoutingAlgo extends Algorithm implements Visitor {
                         }
 
                     }
-                } finally {
-                    routeTableReadUpdateLock.unlock();
                 }
             }
         }
@@ -215,7 +203,10 @@ public class RoutingAlgo extends Algorithm implements Visitor {
         if (message.getTo() == getId()) {
             pushSendToMessage(message);
         } else {
-            RoutingRecord<Integer, Integer> record = routingTable.getRecord(message.getTo());
+            RoutingRecord<Integer, Integer> record;
+            synchronized (routeTableReadUpdateLock) {
+                record = routingTable.getRecord(message.getTo());
+            }
             if (record == null) {
                 throw new RuntimeException("Node " + getId() + " has no route to " + message.getTo());
             }
@@ -269,8 +260,7 @@ public class RoutingAlgo extends Algorithm implements Visitor {
 
         @Override
         public void run() {
-            routeTableReadUpdateLock.lock();
-            try {
+            synchronized (routeTableReadUpdateLock) {
                 for (Integer door : linkStateUpdateQueue) {
                     try {
                         sendTo(door, new LinkStateUpdate((VisidiaRoutingTable) routingTable.clone()));
@@ -279,9 +269,8 @@ public class RoutingAlgo extends Algorithm implements Visitor {
                     }
                 }
                 linkStateUpdateQueue.clear();
-            } finally {
-                routeTableReadUpdateLock.unlock();
             }
         }
     }
+
 }
