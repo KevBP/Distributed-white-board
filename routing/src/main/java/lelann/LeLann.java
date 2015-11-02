@@ -6,7 +6,6 @@ import routing.message.SendToMessage;
 
 public class LeLann extends RoutingAlgo {
 
-
     @Override
     public void setup() {
         if (getId() == 0){

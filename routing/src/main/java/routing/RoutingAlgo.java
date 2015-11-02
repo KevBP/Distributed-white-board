@@ -63,7 +63,6 @@ public abstract class RoutingAlgo extends Algorithm implements Visitor {
 
         setup();
 
-
         try {
             scheduledThreadPool.awaitTermination(Long.MAX_VALUE, TimeUnit.DAYS);
         } catch (InterruptedException e) {
@@ -74,7 +73,7 @@ public abstract class RoutingAlgo extends Algorithm implements Visitor {
     }
 
 
-    public BlockingQueue<Object> getQueueForNode(int node) {
+    private BlockingQueue<Object> getQueueForNode(int node) {
         if (node < 0 || node >= getNetSize()) {
             return null; //TODO exception ?
         }
@@ -88,14 +87,14 @@ public abstract class RoutingAlgo extends Algorithm implements Visitor {
         }
     }
 
-    public boolean isDataInQueue(int node) {
+    private boolean isDataInQueue(int node) {
         synchronized (messageQueues) {
             BlockingQueue<Object> queue = messageQueues.get(node);
             return queue != null && !queue.isEmpty();
         }
     }
 
-    public void sendAllQueueData(int node) {
+    private void sendAllQueueData(int node) {
         BlockingQueue<Object> queue = getQueueForNode(node);
         List<Object> buff = new ArrayList<>();
         queue.drainTo(buff);
@@ -124,6 +123,25 @@ public abstract class RoutingAlgo extends Algorithm implements Visitor {
         }
 
 
+    }
+
+    public void sendToAllNode(Object data, boolean includingCurrentNode) {
+        if (includingCurrentNode) {
+            for (int i = 0; i < getNetSize(); i++) {
+                sendToNode(i, data);
+            }
+        } else {
+            for (int i = 0; i < getNetSize(); i++) {
+                if (i != getId()) {
+                    sendToNode(i, data);
+                }
+            }
+        }
+
+    }
+
+    public void sendToAllNode(Object data) {
+        sendToAllNode(data, false);
     }
 
     public void sendToNode(int node, Object data) {
