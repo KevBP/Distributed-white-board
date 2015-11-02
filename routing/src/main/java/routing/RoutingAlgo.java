@@ -13,6 +13,7 @@ import visidia.simulation.process.criterion.Criterion;
 import visidia.simulation.process.messages.Door;
 import visidia.simulation.process.messages.Message;
 import visidia.simulation.process.messages.MessagePacket;
+import visidia.simulation.process.messages.MessageType;
 
 import java.util.*;
 import java.util.concurrent.*;
@@ -25,6 +26,13 @@ public abstract class RoutingAlgo extends Algorithm implements Visitor {
     private VisidiaRoutingTable routingTable;
     private transient ScheduledExecutorService scheduledThreadPool;
 
+
+    @Override
+    public Collection<MessageType> getMessageTypeList() {
+        Collection typesList = new LinkedList();
+        typesList.add(RoutingMessage.ROUTING_MESSAGE_TYPE);
+        return typesList;
+    }
 
     @Override
     public void init() {
