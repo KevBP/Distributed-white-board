@@ -10,6 +10,7 @@ import java.time.Instant;
 import java.util.Date;
 import java.util.logging.FileHandler;
 import java.util.logging.Logger;
+import java.util.logging.SimpleFormatter;
 
 public class Naimi_Trehel extends RoutingAlgo {
     private int owner;
@@ -23,7 +24,9 @@ public class Naimi_Trehel extends RoutingAlgo {
     public void setup() {
         try {
             logger = Logger.getLogger(Logger.GLOBAL_LOGGER_NAME);
-            logger.addHandler(new FileHandler("P" + getId() + "_" + this.getClass().getName() + "_" + Date.from(Instant.now()).getTime()));
+            FileHandler fileHander = new FileHandler(this.getClass().getName() + "_P" + getId() + "_" + Date.from(Instant.now()).getTime());
+            fileHander.setFormatter(new SimpleFormatter());
+            logger.addHandler(fileHander);
         } catch (IOException e) {
             e.printStackTrace();
         }
