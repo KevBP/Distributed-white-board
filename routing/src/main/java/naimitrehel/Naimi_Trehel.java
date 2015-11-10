@@ -5,32 +5,14 @@ import naimitrehel.message.Token;
 import routing.RoutingAlgo;
 import routing.message.SendToMessage;
 
-import java.io.IOException;
-import java.time.Instant;
-import java.util.Date;
-import java.util.logging.FileHandler;
-import java.util.logging.Logger;
-import java.util.logging.SimpleFormatter;
-
 public class Naimi_Trehel extends RoutingAlgo {
     private int owner;
     private boolean sc;
     private boolean token;
     private int next;
 
-    private Logger logger;
-
     @Override
     public void setup() {
-        try {
-            logger = Logger.getLogger(Logger.GLOBAL_LOGGER_NAME);
-            FileHandler fileHander = new FileHandler(this.getClass().getName() + "_P" + getId() + "_" + Date.from(Instant.now()).getTime());
-            fileHander.setFormatter(new SimpleFormatter());
-            logger.addHandler(fileHander);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        logger.info("POC");
         owner = 0;
         next = -1;
         sc = false;
