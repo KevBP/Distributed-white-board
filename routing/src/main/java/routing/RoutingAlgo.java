@@ -121,8 +121,6 @@ public abstract class RoutingAlgo extends Algorithm implements Visitor {
             routingTable.updateRoute(from, record);
             return originalRecord == null || !record.equals(originalRecord);
         }
-
-
     }
 
     public void sendToAllNode(Object data, boolean includingCurrentNode) {
@@ -137,7 +135,6 @@ public abstract class RoutingAlgo extends Algorithm implements Visitor {
                 }
             }
         }
-
     }
 
     public void sendToAllNode(Object data) {

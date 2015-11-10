@@ -1,37 +1,36 @@
 package lelann;
 
-import ring.Token;
 import routing.RoutingAlgo;
 import routing.message.SendToMessage;
 
-public class LeLann extends RoutingAlgo {
+public abstract class LeLann<T> extends RoutingAlgo {
+    protected final Object criticalSectionLock = new Object();
 
     @Override
     public void setup() {
         if (getId() == 0){
-            sendToNode(0, new Token());
+            sendToNode(0, initToken());
         }
     }
+
+    public abstract Token<T> initToken();
 
     @Override
+    @SuppressWarnings("unchecked")
     public void onMessage(SendToMessage message) {
         if (message.getData() instanceof Token){
-            criticalStuff();
+            Token token;
+            synchronized (criticalSectionLock) {
+                token = criticalSection((Token<T>) message.getData());
+            }
+            sendToNode(nextNode(), token);
         }
-        sendToNode(nextNode(), message.getData());
     }
 
 
-    private synchronized void criticalStuff(){
-        System.out.println("CRITICAL SUB");
-    }
+    public abstract Token criticalSection(Token<T> token);
 
     public int nextNode(){
         return (getId() + 1) % getNetSize();
-    }
-
-    @Override
-    public Object clone() {
-        return new LeLann();
     }
 }
