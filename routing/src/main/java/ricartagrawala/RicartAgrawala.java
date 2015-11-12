@@ -13,16 +13,18 @@ import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Queue;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class RicartAgrawala extends RoutingAlgo implements FormePaintedListener {
     protected final Object criticalSectionLock = new Object();
     private final Queue<Forme> myPaintQueue = new LinkedList<>();
     private final Object tableauLock = new Object();
+    private final AtomicBoolean waitForCritical = new AtomicBoolean();
+    private final AtomicInteger waitingRelCount = new AtomicInteger(1);
     private int h;
     private int hSC;
-    private boolean waitForCritical;
     private List<Integer> waitingNode;
-    private int waitingRelCount = 0;
     private TableauBlancUI tableau;
     private List<Forme> toPaintQueue = new ArrayList<>();
 
@@ -30,7 +32,6 @@ public class RicartAgrawala extends RoutingAlgo implements FormePaintedListener 
     public void setup() {
         h = 0;
         hSC = 0;
-        waitForCritical = false;
         waitingNode = new ArrayList<>();
         SwingUtilities.invokeLater(new Runnable() {
             public void run() {
@@ -47,10 +48,8 @@ public class RicartAgrawala extends RoutingAlgo implements FormePaintedListener 
     }
 
     public boolean requestCriticalSectionNow() {
-        if (!waitForCritical) {
+        if (waitForCritical.compareAndSet(false, true) && waitingRelCount.compareAndSet(1, getNetSize())) {
             hSC = h + 1;
-            waitForCritical = true;
-            waitingRelCount = getNetSize();
             sendToAllNode(new REQMessage(hSC));
             return true;
         }
@@ -76,7 +75,7 @@ public class RicartAgrawala extends RoutingAlgo implements FormePaintedListener 
             REQMessage reqMessage = (REQMessage) message.getData();
             int hd = reqMessage.getH();
             h = Math.max(hd, h);
-            if (waitForCritical && ((hSC < hd) || ((hSC == hd) && getId() < message.getFrom()))) {
+            if (waitForCritical.get() && ((hSC < hd) || ((hSC == hd) && getId() < message.getFrom()))) {
                 waitingNode.add(message.getFrom());
             }
             else {
@@ -84,15 +83,15 @@ public class RicartAgrawala extends RoutingAlgo implements FormePaintedListener 
             }
         }
         else if (message.getData() instanceof  RELMessage) { // Rule 3
-            waitingRelCount--;
-            if (waitingRelCount <= 1) {
+            if (waitingRelCount.decrementAndGet() == 1) {
                 criticalSection();
                 for (Integer node : waitingNode) {
                     sendToNode(node, new RELMessage());
                 }
-                waitForCritical = false;
+                waitForCritical.set(false);
             }
         } else if (message.getData() instanceof ArrayList) {//TODO clean type
+            @SuppressWarnings("unchecked")
             List<Forme> formes = (List<Forme>) message.getData();
             for (Forme forme : formes) {
                 paintForme(forme);
