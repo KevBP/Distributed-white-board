@@ -15,8 +15,13 @@ import visidia.simulation.process.messages.Message;
 import visidia.simulation.process.messages.MessagePacket;
 import visidia.simulation.process.messages.MessageType;
 
+import java.io.IOException;
+import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.logging.FileHandler;
+import java.util.logging.Logger;
+import java.util.logging.SimpleFormatter;
 
 public abstract class RoutingAlgo extends Algorithm implements Visitor {
 
@@ -26,6 +31,7 @@ public abstract class RoutingAlgo extends Algorithm implements Visitor {
     private VisidiaRoutingTable routingTable;
     private transient ScheduledExecutorService scheduledThreadPool;
 
+    private Logger logger;
 
     @Override
     public Collection<MessageType> getMessageTypeList() {
@@ -36,6 +42,15 @@ public abstract class RoutingAlgo extends Algorithm implements Visitor {
 
     @Override
     public void init() {
+        try {
+            logger = Logger.getLogger(Logger.GLOBAL_LOGGER_NAME);
+            FileHandler fileHander = new FileHandler(this.getClass().getName() + "_P" + getId() + "_" + Date.from(Instant.now()).getTime());
+            fileHander.setFormatter(new SimpleFormatter());
+            logger.addHandler(fileHander);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
         messageQueues.addAll(Collections.nCopies(getNetSize(), (BlockingQueue<Object>) null));
         if (getId() == 0) {
             System.out.println("----------------------------------------");
@@ -112,6 +127,9 @@ public abstract class RoutingAlgo extends Algorithm implements Visitor {
         Message msg;
         try {
             msg = this.proc.getNextMessage(door, criterion);
+            if(msg != null) {
+                logger.info("Receive from " + door.getNum() + ": " + msg.toString());
+            }
             return msg;
         } catch (InterruptedException e) {
             throw new SimulationAbortError();
@@ -162,6 +180,12 @@ public abstract class RoutingAlgo extends Algorithm implements Visitor {
         }
     }
 
+
+@Override
+    protected boolean sendTo(int door, Message msg) {
+        logger.info("Send to " + door + ": " + msg.toString());
+        return super.sendTo(door, msg);
+    }
     @Override
     public void visit(Hello message, Door door) {
         int from = (int) message.getData();
