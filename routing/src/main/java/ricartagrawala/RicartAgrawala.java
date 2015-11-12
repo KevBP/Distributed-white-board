@@ -78,12 +78,10 @@ public class RicartAgrawala extends RoutingAlgo implements FormePaintedListener 
             h = Math.max(hd, h);
             if (waitForCritical.get() && ((hSC < hd) || ((hSC == hd) && getId() < message.getFrom()))) {
                 waitingNode.add(message.getFrom());
-            }
-            else {
+            } else {
                 sendToNode(message.getFrom(), new RELMessage());
             }
-        }
-        else if (message.getData() instanceof  RELMessage) { // Rule 3
+        } else if (message.getData() instanceof RELMessage) { // Rule 3
             if (waitingRelCount.decrementAndGet() == 1) {
                 criticalSection();
                 for (Integer node : waitingNode) {
@@ -97,18 +95,19 @@ public class RicartAgrawala extends RoutingAlgo implements FormePaintedListener 
             for (Forme forme : formes) {
                 paintForme(forme);
             }
-        }
-        else {
+        } else {
             throw new RuntimeException("Wrong type message");
         }
     }
 
     public void criticalSection() {
         synchronized (criticalSectionLock) {
+            DataMessage<ArrayList<Forme>> dataMessage;
             synchronized (myPaintQueue) {
-                sendToAllNode(new DataMessage<>(new ArrayList<>(myPaintQueue)), true);
+                dataMessage = new DataMessage<>(new ArrayList<>(myPaintQueue));
                 myPaintQueue.clear();
             }
+            sendToAllNode(dataMessage, true);
         }
     }
 
