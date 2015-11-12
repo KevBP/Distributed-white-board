@@ -3,6 +3,7 @@ package ricartagrawala;
 import gui.Forme;
 import gui.FormePaintedListener;
 import gui.TableauBlancUI;
+import ricartagrawala.message.DataMessage;
 import ricartagrawala.message.RELMessage;
 import ricartagrawala.message.REQMessage;
 import routing.RoutingAlgo;
@@ -90,9 +91,9 @@ public class RicartAgrawala extends RoutingAlgo implements FormePaintedListener 
                 }
                 waitForCritical.set(false);
             }
-        } else if (message.getData() instanceof ArrayList) {//TODO clean type
+        } else if (message.getData() instanceof DataMessage) {
             @SuppressWarnings("unchecked")
-            List<Forme> formes = (List<Forme>) message.getData();
+            List<Forme> formes = ((DataMessage<List<Forme>>) message.getData()).getData();
             for (Forme forme : formes) {
                 paintForme(forme);
             }
@@ -105,7 +106,7 @@ public class RicartAgrawala extends RoutingAlgo implements FormePaintedListener 
     public void criticalSection() {
         synchronized (criticalSectionLock) {
             synchronized (myPaintQueue) {
-                sendToAllNode(new ArrayList<>(myPaintQueue), true);//TODO clean type
+                sendToAllNode(new DataMessage<>(new ArrayList<>(myPaintQueue)), true);
                 myPaintQueue.clear();
             }
         }
