@@ -68,6 +68,10 @@ public abstract class RoutingAlgo extends Algorithm implements Visitor {
         } catch (InterruptedException e) {
             throw new SimulationAbortError();
         } finally {
+            try {
+                onExit();
+            } catch (Exception ignored) {
+            }
             scheduledThreadPool.shutdownNow();
         }
     }
@@ -158,7 +162,6 @@ public abstract class RoutingAlgo extends Algorithm implements Visitor {
         }
     }
 
-
     @Override
     public void visit(Hello message, Door door) {
         int from = (int) message.getData();
@@ -247,6 +250,9 @@ public abstract class RoutingAlgo extends Algorithm implements Visitor {
 
     public abstract void onMessage(SendToMessage message);
 
+    public void onExit() {
+
+    }
 
     class RoutingMessageListener implements Runnable {
         private volatile boolean stop;
