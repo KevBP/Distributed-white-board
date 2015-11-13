@@ -8,6 +8,8 @@ import visidia.simulation.process.messages.Door;
 
 public interface Visitor {
     void visit(Hello message, Door door);
+
     void visit(LinkStateUpdate message, Door door);
+
     void visit(SendToMessage message, Door door);
 }

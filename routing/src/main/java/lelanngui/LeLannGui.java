@@ -8,17 +8,16 @@ import lelann.Token;
 
 import javax.swing.*;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
-import java.util.Queue;
-import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.LinkedTransferQueue;
+import java.util.concurrent.TransferQueue;
 
 
-public class LeLannGui extends LeLann<List<Forme>> implements FormePaintedListener {
+public class LeLannGui extends LeLann<TokenDataTable> implements FormePaintedListener {
     private final Object tableauLock = new Object();
-    private final Queue<Forme> myPaintQueue = new ConcurrentLinkedQueue<>();
+    private final TransferQueue<Forme> paintQueue = new LinkedTransferQueue<>();
     private TableauBlancUI tableau;
-    private List<Forme> toPaintQueue = new ArrayList<>();
+    private List<Forme> tmpPaintQueue = new ArrayList<>();
 
     @Override
     public void setup() {
@@ -28,19 +27,18 @@ public class LeLannGui extends LeLann<List<Forme>> implements FormePaintedListen
                 synchronized (tableauLock) {
                     tableau = new TableauBlancUI(LeLannGui.this);
                     tableau.setTitle(String.format("Tableau Blanc de %d", getId()));
-                    for (Forme forme : toPaintQueue) {
+                    for (Forme forme : tmpPaintQueue) {
                         tableau.delivreForme(forme);
                     }
-                    toPaintQueue = null;
+                    tmpPaintQueue = null;
                 }
             }
         });
     }
 
     @Override
-    public Token<List<Forme>> initToken() {
-        ArrayList<Forme> formes = new ArrayList<>(Collections.nCopies(getNetSize(), (Forme) null));
-        return new Token<>(formes);
+    public Token<TokenDataTable> initToken() {
+        return new Token<>(new TokenDataTable());
     }
 
     private void paintForme(Forme forme) {
@@ -49,7 +47,7 @@ public class LeLannGui extends LeLann<List<Forme>> implements FormePaintedListen
         }
         synchronized (tableauLock) {
             if (tableau == null) {
-                toPaintQueue.add(forme);
+                tmpPaintQueue.add(forme);
             } else {
                 tableau.delivreForme(forme);
             }
@@ -57,14 +55,22 @@ public class LeLannGui extends LeLann<List<Forme>> implements FormePaintedListen
     }
 
     @Override
-    public Token criticalSection(Token<List<Forme>> token) {
-        List<Forme> formes = token.getData();
-        //formes.set(getId(), null);
-        for (Forme forme : formes) {
-            paintForme(forme);
+    public Token criticalSection(Token<TokenDataTable> token) {
+        TokenDataTable table = token.getData();
+        for (Integer node : table) {
+            List<Forme> formes = table.getFormes(node);
+            for (Forme forme : formes) {
+                paintForme(forme);
+            }
         }
-        formes.set(getId(), myPaintQueue.poll());
-        return new Token<>(formes);
+        List<Forme> buff = new ArrayList<>();
+        paintQueue.drainTo(buff);
+        if (buff.size() > 0) {
+            table.putFormes(getId(), buff);
+        } else {
+            table.removeFormes(getId());
+        }
+        return new Token<>(table);
     }
 
     @Override
@@ -74,7 +80,7 @@ public class LeLannGui extends LeLann<List<Forme>> implements FormePaintedListen
 
     @Override
     public void onPaint(Forme forme) {
-        myPaintQueue.add(forme);
+        paintQueue.add(forme);
     }
 
     @Override

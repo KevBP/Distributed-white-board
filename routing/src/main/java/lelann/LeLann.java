@@ -8,7 +8,7 @@ public abstract class LeLann<T> extends RoutingAlgo {
 
     @Override
     public void setup() {
-        if (getId() == 0){
+        if (getId() == 0) {
             sendToNode(0, initToken());
         }
     }
@@ -18,7 +18,7 @@ public abstract class LeLann<T> extends RoutingAlgo {
     @Override
     @SuppressWarnings("unchecked")
     public void onMessage(SendToMessage message) {
-        if (message.getData() instanceof Token){
+        if (message.getData() instanceof Token) {
             Token token;
             synchronized (criticalSectionLock) {
                 token = criticalSection((Token<T>) message.getData());
@@ -30,7 +30,7 @@ public abstract class LeLann<T> extends RoutingAlgo {
 
     public abstract Token criticalSection(Token<T> token);
 
-    public int nextNode(){
+    public int nextNode() {
         return (getId() + 1) % getNetSize();
     }
 }

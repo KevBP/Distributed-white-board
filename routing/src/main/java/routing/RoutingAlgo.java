@@ -127,7 +127,7 @@ public abstract class RoutingAlgo extends Algorithm implements Visitor {
         Message msg;
         try {
             msg = this.proc.getNextMessage(door, criterion);
-            if(msg != null) {
+            if (msg != null) {
                 logger.info("Receive from " + door.getNum() + ": " + msg.toString());
             }
             return msg;
@@ -181,11 +181,12 @@ public abstract class RoutingAlgo extends Algorithm implements Visitor {
     }
 
 
-@Override
+    @Override
     protected boolean sendTo(int door, Message msg) {
         logger.info("Send to " + door + ": " + msg.toString());
         return super.sendTo(door, msg);
     }
+
     @Override
     public void visit(Hello message, Door door) {
         int from = (int) message.getData();
@@ -292,7 +293,7 @@ public abstract class RoutingAlgo extends Algorithm implements Visitor {
                     RoutingMessage message = (RoutingMessage) receive(door, isRoutingMessage);
                     if (message != null) {
                         message.accept(RoutingAlgo.this, door);
-                        System.out.printf("i'm %d and i have this table: %s\n", getId(), routingTable);
+                        //System.out.printf("i'm %d and i have this table: %s\n", getId(), routingTable);
                     } else {
                         Thread.yield();
                     }

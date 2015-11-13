@@ -30,23 +30,20 @@ public class Naimi_Trehel extends RoutingAlgo {
             if (owner == -1) {
                 if (sc == true) {
                     next = message.getFrom();
-                }
-                else {
+                } else {
                     token = false;
                     sendToNode(((REQMessage) message.getData()).getFrom(), new Token());
                 }
-            }
-            else {
+            } else {
                 sendToNode(owner, new REQMessage(((REQMessage) message.getData()).getFrom()));
             }
             owner = ((REQMessage) message.getData()).getFrom();
-        }
-        else if (message.getData() instanceof Token) { // Rule 3
+        } else if (message.getData() instanceof Token) { // Rule 3
             token = true;
         }
     }
 
-    private synchronized void criticalStuff(){
+    private synchronized void criticalStuff() {
         System.out.println("CRITICAL SUB");
     }
 

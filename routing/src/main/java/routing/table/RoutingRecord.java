@@ -1,6 +1,6 @@
 package routing.table;
 
-public class RoutingRecord<Door,Weight> {
+public class RoutingRecord<Door, Weight> {
     private final Door door;
     private final Weight weight;
 

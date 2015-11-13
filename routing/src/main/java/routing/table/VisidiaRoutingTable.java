@@ -13,23 +13,24 @@ public class VisidiaRoutingTable implements RoutingTableInterface<Integer, Integ
 
     public VisidiaRoutingTable(int size) {
         this.size = size;
-        this.table = new ArrayList<>(Collections.nCopies(size, (RoutingRecord<Integer, Integer>)null));
+        this.table = new ArrayList<>(Collections.nCopies(size, (RoutingRecord<Integer, Integer>) null));
     }
+
     @Override
-    public synchronized RoutingRecord<Integer, Integer> getRecord(Integer dest){
+    public synchronized RoutingRecord<Integer, Integer> getRecord(Integer dest) {
         return table.get(dest);
     }
 
 
     @Override
-    public synchronized RoutingRecord<Integer, Integer> updateRoute(Integer dest,  RoutingRecord<Integer, Integer> record) {
-        if (dest >= getSize()){
+    public synchronized RoutingRecord<Integer, Integer> updateRoute(Integer dest, RoutingRecord<Integer, Integer> record) {
+        if (dest >= getSize()) {
             throw new ArrayIndexOutOfBoundsException();
         }
         return table.set(dest, record);
     }
 
-    public RoutingRecord<Integer, Integer> updateRoute(Integer dest,  Integer door, Integer weigth) {
+    public RoutingRecord<Integer, Integer> updateRoute(Integer dest, Integer door, Integer weigth) {
         return updateRoute(dest, new RoutingRecord<>(door, weigth));
     }
 
