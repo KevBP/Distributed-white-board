@@ -6,13 +6,15 @@ import routing.RoutingAlgo;
 import routing.message.SendToMessage;
 
 public class Naimi_Trehel extends RoutingAlgo {
-    private int owner;
-    private boolean sc;
-    private boolean token;
-    private int next;
+    protected int owner;
+    protected boolean sc;
+    protected boolean token;
+    protected int next;
 
     @Override
     public void setup() {
+        // Rule 1
+        System.out.println("00000000000000000000000000");
         owner = 0;
         next = -1;
         sc = false;
@@ -22,29 +24,30 @@ public class Naimi_Trehel extends RoutingAlgo {
             token = true;
             owner = -1;
         }
+        System.out.println("11111111111111111111111111");
     }
 
     @Override
     public void onMessage(SendToMessage message) {
-        if (message.getData() instanceof REQMessage) { // Rule 2
+        if (message.getData() instanceof REQMessage) { // Rule 3
             if (owner == -1) {
                 if (sc == true) {
                     next = message.getFrom();
-                } else {
+                }
+                else {
                     token = false;
                     sendToNode(((REQMessage) message.getData()).getFrom(), new Token());
                 }
-            } else {
+            }
+            else {
                 sendToNode(owner, new REQMessage(((REQMessage) message.getData()).getFrom()));
             }
             owner = ((REQMessage) message.getData()).getFrom();
-        } else if (message.getData() instanceof Token) { // Rule 3
-            token = true;
         }
-    }
-
-    private synchronized void criticalStuff() {
-        System.out.println("CRITICAL SUB");
+        else if (message.getData() instanceof Token) { // Rule 4
+            token = true;
+            notify();
+        }
     }
 
     @Override
