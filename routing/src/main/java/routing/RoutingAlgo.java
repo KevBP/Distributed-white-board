@@ -128,7 +128,7 @@ public abstract class RoutingAlgo extends Algorithm implements Visitor {
         try {
             msg = this.proc.getNextMessage(door, criterion);
             if (msg != null) {
-                logger.info("Receive from " + door.getNum() + ": " + msg.toString());
+                logger.info("Receive from door " + door.getNum() + ": " + msg.toString());
             }
             return msg;
         } catch (InterruptedException e) {
@@ -183,7 +183,7 @@ public abstract class RoutingAlgo extends Algorithm implements Visitor {
 
     @Override
     protected boolean sendTo(int door, Message msg) {
-        logger.info("Send to " + door + ": " + msg.toString());
+        logger.info("Send to door " + door + ": " + msg.toString());
         return super.sendTo(door, msg);
     }
 
