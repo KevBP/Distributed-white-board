@@ -1,4 +1,4 @@
-package naimitrehel.message;
+package naimitrehelgui.message;
 
 public class REQMessage {
     private int from;

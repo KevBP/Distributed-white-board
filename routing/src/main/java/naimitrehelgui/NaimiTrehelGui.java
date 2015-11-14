@@ -3,15 +3,20 @@ package naimitrehelgui;
 import gui.Forme;
 import gui.FormePaintedListener;
 import gui.TableauBlancUI;
-import naimitrehel.Naimi_Trehel;
-import naimitrehel.message.REQMessage;
-import naimitrehel.message.Token;
+import naimitrehelgui.message.REQMessage;
+import naimitrehelgui.message.Token;
 import naimitrehelgui.message.PaintOK;
+import routing.RoutingAlgo;
 import routing.message.SendToMessage;
 
 import javax.swing.*;
 
-public class NaimiTrehelGui extends Naimi_Trehel implements FormePaintedListener {
+public class NaimiTrehelGui extends RoutingAlgo implements FormePaintedListener {
+    private int owner;
+    private boolean sc;
+    private boolean token;
+    private int next;
+    private final Object tokenLock = new Object();
     private final Object tableauLock = new Object();
     private TableauBlancUI tableau;
     private Forme forme;
@@ -19,8 +24,17 @@ public class NaimiTrehelGui extends Naimi_Trehel implements FormePaintedListener
 
     @Override
     public void setup() {
-        super.setup();
+        // Rule 1
+        owner = 0;
+        next = -1;
+        sc = false;
+        token = false;
         cptPaint = 0;
+        if (getId() == 0) {
+            sendToNode(0, new Token());
+            token = true;
+            owner = -1;
+        }
         SwingUtilities.invokeLater(new Runnable() {
             public void run() {
                 synchronized (tableauLock) {
@@ -31,16 +45,31 @@ public class NaimiTrehelGui extends Naimi_Trehel implements FormePaintedListener
         });
     }
 
-    /*
-    Proc 0 envoie des formes.
-    Proc 1 decide d'en envoyer aussi après.
-    Proc 0 recoit le REQ de Proc 1 mais n'envoie pas le token.
-    Proc 1 pense qu'il est le owner du token aussi.
-     */
     @Override
     public void onMessage(SendToMessage message) {
-        super.onMessage(message);
-        if(message.getData() instanceof Forme) {
+        if (message.getData() instanceof REQMessage) { // Rule 3
+            if (owner == -1) {
+                if (sc == true) {
+                    next = message.getFrom();
+                }
+                else {
+                    token = false;
+                    sendToNode(((REQMessage) message.getData()).getFrom(), new Token());
+                }
+            }
+            else {
+                sendToNode(owner, new REQMessage(((REQMessage) message.getData()).getFrom()));
+            }
+            owner = ((REQMessage) message.getData()).getFrom();
+        }
+        else if (message.getData() instanceof Token) { // Rule 4
+            synchronized (tokenLock) {
+                token = true;
+                owner = -1;
+                tokenLock.notify();
+            }
+        }
+        else if(message.getData() instanceof Forme) {
             synchronized (tableauLock) {
                 paintForme((Forme) message.getData());
             }
