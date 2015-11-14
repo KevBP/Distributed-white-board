@@ -10,11 +10,11 @@ public class Naimi_Trehel extends RoutingAlgo {
     protected boolean sc;
     protected boolean token;
     protected int next;
+    protected final Object tokenLock = new Object();
 
     @Override
     public void setup() {
         // Rule 1
-        System.out.println("00000000000000000000000000");
         owner = 0;
         next = -1;
         sc = false;
@@ -24,13 +24,14 @@ public class Naimi_Trehel extends RoutingAlgo {
             token = true;
             owner = -1;
         }
-        System.out.println("11111111111111111111111111");
     }
 
     @Override
     public void onMessage(SendToMessage message) {
         if (message.getData() instanceof REQMessage) { // Rule 3
+            System.out.println(owner);
             if (owner == -1) {
+                System.out.println(sc);
                 if (sc == true) {
                     next = message.getFrom();
                 }
@@ -45,8 +46,11 @@ public class Naimi_Trehel extends RoutingAlgo {
             owner = ((REQMessage) message.getData()).getFrom();
         }
         else if (message.getData() instanceof Token) { // Rule 4
-            token = true;
-            notify();
+            synchronized (tokenLock) {
+                token = true;
+                owner = -1;
+                notify();
+            }
         }
     }
 
