@@ -10,17 +10,23 @@ import routing.RoutingAlgo;
 import routing.message.SendToMessage;
 
 import javax.swing.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.LinkedTransferQueue;
+import java.util.concurrent.TransferQueue;
 
 public class NaimiTrehelGui extends RoutingAlgo implements FormePaintedListener {
     private int owner;
     private boolean sc;
     private boolean token;
+    private boolean waitForToken;
     private int next;
     private final Object tokenLock = new Object();
     private final Object tableauLock = new Object();
     private TableauBlancUI tableau;
-    private Forme forme;
     private int cptPaint;
+    private List<Forme> tmpPaintQueue = new ArrayList<>();
+    private final TransferQueue<Forme> paintQueue = new LinkedTransferQueue<>();
 
     @Override
     public void setup() {
@@ -29,6 +35,7 @@ public class NaimiTrehelGui extends RoutingAlgo implements FormePaintedListener 
         next = -1;
         sc = false;
         token = false;
+        waitForToken = false;
         cptPaint = 0;
         if (getId() == 0) {
             sendToNode(0, new Token());
@@ -40,6 +47,10 @@ public class NaimiTrehelGui extends RoutingAlgo implements FormePaintedListener 
                 synchronized (tableauLock) {
                     tableau = new TableauBlancUI(NaimiTrehelGui.this);
                     tableau.setTitle(String.format("Tableau Blanc de %d", getId()));
+                    for (Forme forme : tmpPaintQueue) {
+                        tableau.delivreForme(forme);
+                    }
+                    tmpPaintQueue = null;
                 }
             }
         });
@@ -65,13 +76,16 @@ public class NaimiTrehelGui extends RoutingAlgo implements FormePaintedListener 
         else if (message.getData() instanceof Token) { // Rule 4
             synchronized (tokenLock) {
                 token = true;
+                waitForToken = false;
                 owner = -1;
                 tokenLock.notify();
             }
         }
-        else if(message.getData() instanceof Forme) {
+        else if(message.getData() instanceof TransferQueue) {
             synchronized (tableauLock) {
-                paintForme((Forme) message.getData());
+                for (Forme forme : (TransferQueue<Forme>) message.getData()) {
+                    paintForme(forme);
+                }
             }
             sendToNode(message.getFrom(), new PaintOK());
         }
@@ -85,7 +99,9 @@ public class NaimiTrehelGui extends RoutingAlgo implements FormePaintedListener 
 
     public void criticalSection() {
         cptPaint = 0;
-        sendToAllNode(forme);
+        TransferQueue<Forme> paintQueueToSend = new LinkedTransferQueue<>(paintQueue);
+        sendToAllNode(paintQueueToSend);
+        sendToNode(getId(), paintQueueToSend);
     }
 
     // Rule 5
@@ -104,7 +120,7 @@ public class NaimiTrehelGui extends RoutingAlgo implements FormePaintedListener 
         }
         synchronized (tableauLock) {
             if (tableau == null) {
-                //tmpPaintQueue.add(forme);
+                tmpPaintQueue.add(forme);
             } else {
                 tableau.delivreForme(forme);
             }
@@ -113,11 +129,14 @@ public class NaimiTrehelGui extends RoutingAlgo implements FormePaintedListener 
 
     @Override
     public void onPaint(Forme forme) {
-        this.forme = forme;
+        paintQueue.add(forme);
         // Rule 2
         sc = true;
         if(owner > -1) {
-            sendToNode(owner, new REQMessage(getId()));
+            if(waitForToken == false) {
+                waitForToken = true;
+                sendToNode(owner, new REQMessage(getId()));
+            }
             synchronized (tokenLock) {
                 while (token != true) {
                     try {
