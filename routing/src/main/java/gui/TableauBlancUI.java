@@ -189,6 +189,14 @@ public class TableauBlancUI extends JFrame implements ActionListener,
         canvas.delivreForme(forme, false);
     }
 
+    public boolean removeLastForme(Forme forme) {
+        if (canvas.removeLastForme(forme)) {
+            revalidate();
+            return true;
+        }
+        return false;
+    }
+
     class ActionForme extends AbstractAction {
 
         private static final long serialVersionUID = 2428884176915830386L;
