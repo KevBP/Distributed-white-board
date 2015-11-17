@@ -16,7 +16,7 @@ import java.util.concurrent.TransferQueue;
 
 public class LeLannGui extends LeLann<TokenDataTable> implements FormePaintedListener {
 
-    public static final boolean STRICT_MODE = true;
+    public static final boolean STRICT_DRAWING_ORDER = true;
 
     private final Object tableauLock = new Object();
     private final TransferQueue<Forme> paintQueue = new LinkedTransferQueue<>();
@@ -73,7 +73,7 @@ public class LeLannGui extends LeLann<TokenDataTable> implements FormePaintedLis
         }
         List<Forme> buff = new ArrayList<>();
         paintQueue.drainTo(buff);
-        if (!STRICT_MODE) {
+        if (!STRICT_DRAWING_ORDER) {
             removeFormes(buff);
         }
         paintFormes(buff);
@@ -105,7 +105,7 @@ public class LeLannGui extends LeLann<TokenDataTable> implements FormePaintedLis
     @Override
     public void onPaint(Forme forme) {
         paintQueue.add(forme);
-        if (STRICT_MODE) {
+        if (STRICT_DRAWING_ORDER) {
             removeForme(forme);
         }
     }
