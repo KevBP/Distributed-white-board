@@ -18,6 +18,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class RicartAgrawala extends RoutingAlgo implements FormePaintedListener {
+    public static final boolean STRICT_DRAWING_ORDER = false;
+
     protected final Object criticalSectionLock = new Object();
     private final Queue<Forme> myPaintQueue = new LinkedList<>();
     private final AtomicBoolean waitForCritical = new AtomicBoolean();
@@ -66,9 +68,10 @@ public class RicartAgrawala extends RoutingAlgo implements FormePaintedListener 
         } else if (message.getData() instanceof DataMessage) {
             @SuppressWarnings("unchecked")
             List<Forme> formes = ((DataMessage<List<Forme>>) message.getData()).getData();
-            for (Forme forme : formes) {
-                tableau.paintForme(forme);
+            if (!isStrictDrawingOrder()) {
+                tableau.removeFormes(formes);
             }
+            tableau.paintFormes(formes);
         } else {
             throw new RuntimeException("Wrong type message");
         }
@@ -85,6 +88,10 @@ public class RicartAgrawala extends RoutingAlgo implements FormePaintedListener 
         }
     }
 
+    public boolean isStrictDrawingOrder() {
+        return STRICT_DRAWING_ORDER;
+    }
+
     @Override
     public Object clone() {
         return new RicartAgrawala();
@@ -95,6 +102,10 @@ public class RicartAgrawala extends RoutingAlgo implements FormePaintedListener 
         synchronized (myPaintQueue) {
             myPaintQueue.add(forme);
         }
+        if (isStrictDrawingOrder()) {
+            tableau.removeForme(forme);
+        }
+
         requestCriticalSectionNow();
     }
 

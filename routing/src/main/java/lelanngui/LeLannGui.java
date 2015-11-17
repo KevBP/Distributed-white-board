@@ -15,7 +15,7 @@ import java.util.concurrent.TransferQueue;
 
 public class LeLannGui extends LeLann<TokenDataTable> implements FormePaintedListener {
 
-    public static final boolean STRICT_DRAWING_ORDER = true;
+    public static final boolean STRICT_DRAWING_ORDER = false;
     private final TransferQueue<Forme> paintQueue = new LinkedTransferQueue<>();
     private TableauBlanc tableau;
 
@@ -36,7 +36,7 @@ public class LeLannGui extends LeLann<TokenDataTable> implements FormePaintedLis
         TokenDataTable table = token.getData();
         List<Forme> buff = new ArrayList<>();
         paintQueue.drainTo(buff);
-        if (!STRICT_DRAWING_ORDER) {
+        if (!isStrictDrawingOrder()) {
             tableau.removeFormes(buff);
         }
         boolean painted = false;
@@ -62,6 +62,10 @@ public class LeLannGui extends LeLann<TokenDataTable> implements FormePaintedLis
         return new Token<>(table);
     }
 
+    public boolean isStrictDrawingOrder() {
+        return STRICT_DRAWING_ORDER;
+    }
+
     @Override
     public Object clone() {
         return new LeLannGui();
@@ -70,7 +74,7 @@ public class LeLannGui extends LeLann<TokenDataTable> implements FormePaintedLis
     @Override
     public void onPaint(Forme forme) {
         paintQueue.add(forme);
-        if (STRICT_DRAWING_ORDER) {
+        if (isStrictDrawingOrder()) {
             tableau.removeForme(forme);
         }
     }
