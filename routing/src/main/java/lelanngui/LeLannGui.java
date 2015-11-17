@@ -67,16 +67,26 @@ public class LeLannGui extends LeLann<TokenDataTable> implements FormePaintedLis
     @Override
     public Token criticalSection(Token<TokenDataTable> token) {
         TokenDataTable table = token.getData();
-        for (Integer node : table) {
-            List<Forme> formes = table.getFormes(node);
-            paintFormes(formes);
-        }
         List<Forme> buff = new ArrayList<>();
         paintQueue.drainTo(buff);
         if (!STRICT_DRAWING_ORDER) {
             removeFormes(buff);
         }
-        paintFormes(buff);
+        boolean painted = false;
+        for (Integer node : table) {
+            if (!painted && node >= getId()) {
+                paintFormes(buff);
+                painted = true;
+            }
+            if (node != getId()) {
+                List<Forme> formes = table.getFormes(node);
+                paintFormes(formes);
+            }
+        }
+
+        if (!painted) {
+            paintFormes(buff);
+        }
         if (buff.size() > 0) {
             table.putFormes(getId(), buff);
         } else {
