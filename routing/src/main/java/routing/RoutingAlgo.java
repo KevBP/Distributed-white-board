@@ -26,7 +26,7 @@ import java.util.logging.SimpleFormatter;
 public abstract class RoutingAlgo extends Algorithm implements Visitor {
 
     private final transient Set<Integer> linkStateUpdateQueue = new HashSet<>();
-    private final List<BlockingQueue<Object>> messageQueues = new ArrayList<>();
+    private final List<TransferQueue<Object>> messageQueues = new ArrayList<>();
     private final Object routeTableReadUpdateLock = new Object();
     private VisidiaRoutingTable routingTable;
     private transient ScheduledExecutorService scheduledThreadPool;
@@ -51,7 +51,7 @@ public abstract class RoutingAlgo extends Algorithm implements Visitor {
             e.printStackTrace();
         }
 
-        messageQueues.addAll(Collections.nCopies(getNetSize(), (BlockingQueue<Object>) null));
+        messageQueues.addAll(Collections.nCopies(getNetSize(), (TransferQueue<Object>) null));
         if (getId() == 0) {
             System.out.println("----------------------------------------");
         }
@@ -97,9 +97,9 @@ public abstract class RoutingAlgo extends Algorithm implements Visitor {
             return null; //TODO exception ?
         }
         synchronized (messageQueues) {
-            BlockingQueue<Object> queue = messageQueues.get(node);
+            TransferQueue<Object> queue = messageQueues.get(node);
             if (queue == null) {
-                queue = new LinkedBlockingQueue<>();
+                queue = new LinkedTransferQueue<>();
                 messageQueues.set(node, queue);
             }
             return queue;
