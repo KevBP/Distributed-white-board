@@ -78,6 +78,7 @@ public class NaimiTrehelGui extends RoutingAlgo implements FormePaintedListener 
         TransferQueue<Forme> paintQueueToSend = new LinkedTransferQueue<>(paintQueue);
         paintQueue.clear();
         sendToAllNode(paintQueueToSend);
+        tableau.removeFormes(paintQueueToSend);
         tableau.paintFormes(paintQueueToSend);
         endCriticalUse();
     }
@@ -97,6 +98,7 @@ public class NaimiTrehelGui extends RoutingAlgo implements FormePaintedListener 
     @Override
     public void onPaint(Forme forme) {
         paintQueue.add(forme);
+        tableau.removeForme(forme);
         // Rule 2
         sc = true;
         if(owner > -1) {
