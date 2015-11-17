@@ -5,7 +5,6 @@ import gui.FormePaintedListener;
 import gui.TableauBlancUI;
 import naimitrehelgui.message.REQMessage;
 import naimitrehelgui.message.Token;
-import naimitrehelgui.message.PaintOK;
 import routing.RoutingAlgo;
 import routing.message.SendToMessage;
 
@@ -24,7 +23,6 @@ public class NaimiTrehelGui extends RoutingAlgo implements FormePaintedListener 
     private final Object tokenLock = new Object();
     private final Object tableauLock = new Object();
     private TableauBlancUI tableau;
-    private int cptPaint;
     private List<Forme> tmpPaintQueue = new ArrayList<>();
     private final TransferQueue<Forme> paintQueue = new LinkedTransferQueue<>();
 
@@ -34,12 +32,15 @@ public class NaimiTrehelGui extends RoutingAlgo implements FormePaintedListener 
         owner = 0;
         next = -1;
         sc = false;
-        token = false;
+        synchronized (tokenLock) {
+            token = false;
+        }
         waitForToken = false;
-        cptPaint = 0;
         if (getId() == 0) {
             sendToNode(0, new Token());
-            token = true;
+            synchronized (tokenLock) {
+                token = true;
+            }
             owner = -1;
         }
         SwingUtilities.invokeLater(new Runnable() {
@@ -60,11 +61,13 @@ public class NaimiTrehelGui extends RoutingAlgo implements FormePaintedListener 
     public void onMessage(SendToMessage message) {
         if (message.getData() instanceof REQMessage) { // Rule 3
             if (owner == -1) {
-                if (sc == true) {
-                    next = message.getFrom();
+                if (sc == true && next == -1) {
+                    next = ((REQMessage) message.getData()).getFrom();
                 }
                 else {
-                    token = false;
+                    synchronized (tokenLock) {
+                        token = false;
+                    }
                     sendToNode(((REQMessage) message.getData()).getFrom(), new Token());
                 }
             }
@@ -87,21 +90,19 @@ public class NaimiTrehelGui extends RoutingAlgo implements FormePaintedListener 
                     paintForme(forme);
                 }
             }
-            sendToNode(message.getFrom(), new PaintOK());
-        }
-        else if(message.getData() instanceof PaintOK) {
-            cptPaint++;
-            if(cptPaint == getNetSize()-1 && sc == true) {
-                endCriticalUse();
-            }
         }
     }
 
     public void criticalSection() {
-        cptPaint = 0;
         TransferQueue<Forme> paintQueueToSend = new LinkedTransferQueue<>(paintQueue);
+        paintQueue.clear();
         sendToAllNode(paintQueueToSend);
-        sendToNode(getId(), paintQueueToSend);
+        synchronized (tableauLock) {
+            for (Forme forme : paintQueueToSend) {
+                paintForme(forme);
+            }
+        }
+        endCriticalUse();
     }
 
     // Rule 5
@@ -109,7 +110,9 @@ public class NaimiTrehelGui extends RoutingAlgo implements FormePaintedListener 
         sc = false;
         if (next > -1) {
             sendToNode(next, new Token());
-            token = false;
+            synchronized (tokenLock) {
+                token = false;
+            }
             next = -1;
         }
     }
@@ -134,20 +137,23 @@ public class NaimiTrehelGui extends RoutingAlgo implements FormePaintedListener 
         sc = true;
         if(owner > -1) {
             if(waitForToken == false) {
-                waitForToken = true;
                 sendToNode(owner, new REQMessage(getId()));
-            }
-            synchronized (tokenLock) {
-                while (token != true) {
-                    try {
-                        tokenLock.wait();
-                    } catch (InterruptedException e) {
-                        e.printStackTrace();
+                owner = -1;
+                waitForToken = true;
+                synchronized (tokenLock) {
+                    while (token != true) {
+                        try {
+                            tokenLock.wait();
+                        } catch (InterruptedException e) {
+                            e.printStackTrace();
+                        }
                     }
                 }
             }
         }
-        criticalSection();
+        if(owner == -1 && waitForToken == false) {
+            criticalSection();
+        }
     }
 
     @Override
