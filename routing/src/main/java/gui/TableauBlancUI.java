@@ -185,6 +185,10 @@ public class TableauBlancUI extends JFrame implements ActionListener,
         canvas.delivreForme(forme);
     }
 
+    public void setFormePaintedListener(FormePaintedListener listener) {
+        canvas.setFormePaintedListener(listener);
+    }
+
     public void delivreForme(Forme forme) {
         canvas.delivreForme(forme, false);
     }
@@ -210,4 +214,6 @@ public class TableauBlancUI extends JFrame implements ActionListener,
         public void actionPerformed(ActionEvent e) {
         }
     }
+
+
 }

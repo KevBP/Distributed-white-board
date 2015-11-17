@@ -2,29 +2,25 @@ package naimitrehelgui;
 
 import gui.Forme;
 import gui.FormePaintedListener;
-import gui.TableauBlancUI;
+import gui.facade.TableauBlanc;
+import gui.facade.TableauBlancImpl;
 import naimitrehelgui.message.REQMessage;
 import naimitrehelgui.message.Token;
 import routing.RoutingAlgo;
 import routing.message.SendToMessage;
 
-import javax.swing.*;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.concurrent.LinkedTransferQueue;
 import java.util.concurrent.TransferQueue;
 
 public class NaimiTrehelGui extends RoutingAlgo implements FormePaintedListener {
+    private final Object tokenLock = new Object();
+    private final TransferQueue<Forme> paintQueue = new LinkedTransferQueue<>();
     private int owner;
     private boolean sc;
     private boolean token;
     private boolean waitForToken;
     private int next;
-    private final Object tokenLock = new Object();
-    private final Object tableauLock = new Object();
-    private TableauBlancUI tableau;
-    private List<Forme> tmpPaintQueue = new ArrayList<>();
-    private final TransferQueue<Forme> paintQueue = new LinkedTransferQueue<>();
+    private TableauBlanc tableau;
 
     @Override
     public void setup() {
@@ -43,18 +39,7 @@ public class NaimiTrehelGui extends RoutingAlgo implements FormePaintedListener 
             }
             owner = -1;
         }
-        SwingUtilities.invokeLater(new Runnable() {
-            public void run() {
-                synchronized (tableauLock) {
-                    tableau = new TableauBlancUI(NaimiTrehelGui.this);
-                    tableau.setTitle(String.format("Tableau Blanc de %d", getId()));
-                    for (Forme forme : tmpPaintQueue) {
-                        tableau.delivreForme(forme);
-                    }
-                    tmpPaintQueue = null;
-                }
-            }
-        });
+        tableau = new TableauBlancImpl(String.format("Tableau Blanc de %d", getId()), this);
     }
 
     @Override
@@ -85,11 +70,7 @@ public class NaimiTrehelGui extends RoutingAlgo implements FormePaintedListener 
             }
         }
         else if(message.getData() instanceof TransferQueue) {
-            synchronized (tableauLock) {
-                for (Forme forme : (TransferQueue<Forme>) message.getData()) {
-                    paintForme(forme);
-                }
-            }
+            tableau.paintFormes((TransferQueue<Forme>) message.getData());
         }
     }
 
@@ -97,11 +78,7 @@ public class NaimiTrehelGui extends RoutingAlgo implements FormePaintedListener 
         TransferQueue<Forme> paintQueueToSend = new LinkedTransferQueue<>(paintQueue);
         paintQueue.clear();
         sendToAllNode(paintQueueToSend);
-        synchronized (tableauLock) {
-            for (Forme forme : paintQueueToSend) {
-                paintForme(forme);
-            }
-        }
+        tableau.paintFormes(paintQueueToSend);
         endCriticalUse();
     }
 
@@ -114,19 +91,6 @@ public class NaimiTrehelGui extends RoutingAlgo implements FormePaintedListener 
                 token = false;
             }
             next = -1;
-        }
-    }
-
-    private void paintForme(Forme forme) {
-        if (forme == null) {
-            return;
-        }
-        synchronized (tableauLock) {
-            if (tableau == null) {
-                tmpPaintQueue.add(forme);
-            } else {
-                tableau.delivreForme(forme);
-            }
         }
     }
 
@@ -158,15 +122,7 @@ public class NaimiTrehelGui extends RoutingAlgo implements FormePaintedListener 
 
     @Override
     public void onExit() {
-        SwingUtilities.invokeLater(new Runnable() {
-            public void run() {
-                synchronized (tableauLock) {
-                    if (tableau != null) {
-                        tableau.dispose();
-                    }
-                }
-            }
-        });
+        tableau.exit();
         super.onExit();
     }
 

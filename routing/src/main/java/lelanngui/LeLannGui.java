@@ -2,13 +2,12 @@ package lelanngui;
 
 import gui.Forme;
 import gui.FormePaintedListener;
-import gui.TableauBlancUI;
+import gui.facade.TableauBlanc;
+import gui.facade.TableauBlancImpl;
 import lelann.LeLann;
 import lelann.Token;
 
-import javax.swing.*;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.LinkedTransferQueue;
 import java.util.concurrent.TransferQueue;
@@ -17,27 +16,13 @@ import java.util.concurrent.TransferQueue;
 public class LeLannGui extends LeLann<TokenDataTable> implements FormePaintedListener {
 
     public static final boolean STRICT_DRAWING_ORDER = true;
-
-    private final Object tableauLock = new Object();
     private final TransferQueue<Forme> paintQueue = new LinkedTransferQueue<>();
-    private TableauBlancUI tableau;
-    private List<Forme> tmpPaintQueue = new ArrayList<>();
+    private TableauBlanc tableau;
 
     @Override
     public void setup() {
         super.setup();
-        SwingUtilities.invokeLater(new Runnable() {
-            public void run() {
-                synchronized (tableauLock) {
-                    tableau = new TableauBlancUI(LeLannGui.this);
-                    tableau.setTitle(String.format("Tableau Blanc de %d", getId()));
-                    for (Forme forme : tmpPaintQueue) {
-                        tableau.delivreForme(forme);
-                    }
-                    tmpPaintQueue = null;
-                }
-            }
-        });
+        tableau = new TableauBlancImpl(String.format("Tableau Blanc de %d", getId()), this);
     }
 
     @Override
@@ -45,24 +30,6 @@ public class LeLannGui extends LeLann<TokenDataTable> implements FormePaintedLis
         return new Token<>(new TokenDataTable());
     }
 
-    private void paintFormes(Iterable<Forme> formes) {
-        synchronized (tableauLock) {
-            for (Forme forme : formes) {
-                if (forme == null) {
-                    continue;
-                }
-                if (tableau == null) {
-                    tmpPaintQueue.add(forme);
-                } else {
-                    tableau.delivreForme(forme);
-                }
-            }
-        }
-    }
-
-    private void paintForme(Forme forme) {
-        paintFormes(Collections.singleton(forme));
-    }
 
     @Override
     public Token criticalSection(Token<TokenDataTable> token) {
@@ -70,22 +37,22 @@ public class LeLannGui extends LeLann<TokenDataTable> implements FormePaintedLis
         List<Forme> buff = new ArrayList<>();
         paintQueue.drainTo(buff);
         if (!STRICT_DRAWING_ORDER) {
-            removeFormes(buff);
+            tableau.removeFormes(buff);
         }
         boolean painted = false;
         for (Integer node : table) {
             if (!painted && node >= getId()) {
-                paintFormes(buff);
+                tableau.paintFormes(buff);
                 painted = true;
             }
             if (node != getId()) {
                 List<Forme> formes = table.getFormes(node);
-                paintFormes(formes);
+                tableau.paintFormes(formes);
             }
         }
 
         if (!painted) {
-            paintFormes(buff);
+            tableau.paintFormes(buff);
         }
         if (buff.size() > 0) {
             table.putFormes(getId(), buff);
@@ -93,18 +60,6 @@ public class LeLannGui extends LeLann<TokenDataTable> implements FormePaintedLis
             table.removeFormes(getId());
         }
         return new Token<>(table);
-    }
-
-    public void removeForme(Forme forme) {
-        removeFormes(Collections.singleton(forme));
-    }
-
-    public void removeFormes(Iterable<Forme> formes) {
-        synchronized (tableauLock) {
-            for (Forme forme : formes) {
-                tableau.removeLastForme(forme);
-            }
-        }
     }
 
     @Override
@@ -116,21 +71,13 @@ public class LeLannGui extends LeLann<TokenDataTable> implements FormePaintedLis
     public void onPaint(Forme forme) {
         paintQueue.add(forme);
         if (STRICT_DRAWING_ORDER) {
-            removeForme(forme);
+            tableau.removeForme(forme);
         }
     }
 
     @Override
     public void onExit() {
-        SwingUtilities.invokeLater(new Runnable() {
-            public void run() {
-                synchronized (tableauLock) {
-                    if (tableau != null) {
-                        tableau.dispose();
-                    }
-                }
-            }
-        });
+        tableau.exit();
         super.onExit();
     }
 }

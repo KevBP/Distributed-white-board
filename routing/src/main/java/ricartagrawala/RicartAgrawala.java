@@ -2,14 +2,14 @@ package ricartagrawala;
 
 import gui.Forme;
 import gui.FormePaintedListener;
-import gui.TableauBlancUI;
+import gui.facade.TableauBlanc;
+import gui.facade.TableauBlancImpl;
 import ricartagrawala.message.DataMessage;
 import ricartagrawala.message.RELMessage;
 import ricartagrawala.message.REQMessage;
 import routing.RoutingAlgo;
 import routing.message.SendToMessage;
 
-import javax.swing.*;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
@@ -20,32 +20,19 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class RicartAgrawala extends RoutingAlgo implements FormePaintedListener {
     protected final Object criticalSectionLock = new Object();
     private final Queue<Forme> myPaintQueue = new LinkedList<>();
-    private final Object tableauLock = new Object();
     private final AtomicBoolean waitForCritical = new AtomicBoolean();
     private final AtomicInteger waitingRelCount = new AtomicInteger(1);
     private int h;
     private int hSC;
     private List<Integer> waitingNode;
-    private TableauBlancUI tableau;
-    private List<Forme> toPaintQueue = new ArrayList<>();
+    private TableauBlanc tableau;
 
     @Override
     public void setup() {
         h = 0;
         hSC = 0;
         waitingNode = new ArrayList<>();
-        SwingUtilities.invokeLater(new Runnable() {
-            public void run() {
-                synchronized (tableauLock) {
-                    tableau = new TableauBlancUI(RicartAgrawala.this);
-                    tableau.setTitle(String.format("Tableau Blanc de %d", getId()));
-                    for (Forme forme : toPaintQueue) {
-                        tableau.delivreForme(forme);
-                    }
-                    toPaintQueue = null;
-                }
-            }
-        });
+        tableau = new TableauBlancImpl(String.format("Tableau Blanc de %d", getId()), RicartAgrawala.this);
     }
 
     public boolean requestCriticalSectionNow() {
@@ -55,19 +42,6 @@ public class RicartAgrawala extends RoutingAlgo implements FormePaintedListener 
             return true;
         }
         return false;
-    }
-
-    private void paintForme(Forme forme) {
-        if (forme == null) {
-            return;
-        }
-        synchronized (tableauLock) {
-            if (tableau == null) {
-                toPaintQueue.add(forme);
-            } else {
-                tableau.delivreForme(forme);
-            }
-        }
     }
 
     @Override
@@ -93,7 +67,7 @@ public class RicartAgrawala extends RoutingAlgo implements FormePaintedListener 
             @SuppressWarnings("unchecked")
             List<Forme> formes = ((DataMessage<List<Forme>>) message.getData()).getData();
             for (Forme forme : formes) {
-                paintForme(forme);
+                tableau.paintForme(forme);
             }
         } else {
             throw new RuntimeException("Wrong type message");
@@ -126,15 +100,7 @@ public class RicartAgrawala extends RoutingAlgo implements FormePaintedListener 
 
     @Override
     public void onExit() {
-        SwingUtilities.invokeLater(new Runnable() {
-            public void run() {
-                synchronized (tableauLock) {
-                    if (tableau != null) {
-                        tableau.dispose();
-                    }
-                }
-            }
-        });
+        tableau.exit();
         super.onExit();
     }
 }
