@@ -36,7 +36,7 @@ public abstract class LeLann<T> extends RoutingAlgo {
     }
 
     /**
-     * Methode pour cr�ér et initialiser le 1er {@link Token}.
+     * Methode pour créer et initialiser le 1er {@link Token}.
      * @return un {@link Token} a utiliser
      */
     public abstract Token<T> initToken();
