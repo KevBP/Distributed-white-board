@@ -61,10 +61,27 @@ public class TableauBlanc extends JPanel {
         }
     }
 
+    public boolean removeLastForme() {
+        synchronized (formes) {
+            if (formes.size() > 0) {
+                formes.removeLast();
+                return true;
+            }
+            return false;
+        }
+    }
+
+    public boolean removeLastForme(Forme forme) {
+        synchronized (formes) {
+            return formes.removeLastOccurrence(forme);
+        }
+    }
+
     /**
      * Ajout d'une forme à dessiner.
      *
      * @param forme La forme à dessiner.
+     * @param dispatch propager l'information au listener
      */
     public void delivreForme(Forme forme, boolean dispatch) {
         synchronized (formes) {

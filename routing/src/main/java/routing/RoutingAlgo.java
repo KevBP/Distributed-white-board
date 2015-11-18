@@ -25,8 +25,17 @@ import java.util.logging.SimpleFormatter;
 
 public abstract class RoutingAlgo extends Algorithm implements Visitor {
 
+    public static final int SPREADLINKSTATEUPDATE_LATENCY = 750;
+    public static final Criterion IS_ROUTING_MESSAGE = new Criterion() {
+        @Override
+        public boolean isMatchedBy(Object o) {
+            return o instanceof MessagePacket &&
+                    ((MessagePacket) o).message() instanceof RoutingMessage;
+        }
+    };
+
     private final transient Set<Integer> linkStateUpdateQueue = new HashSet<>();
-    private final List<BlockingQueue<Object>> messageQueues = new ArrayList<>();
+    private final List<TransferQueue<Object>> messageQueues = new ArrayList<>();
     private final Object routeTableReadUpdateLock = new Object();
     private VisidiaRoutingTable routingTable;
     private transient ScheduledExecutorService scheduledThreadPool;
@@ -51,7 +60,7 @@ public abstract class RoutingAlgo extends Algorithm implements Visitor {
             e.printStackTrace();
         }
 
-        messageQueues.addAll(Collections.nCopies(getNetSize(), (BlockingQueue<Object>) null));
+        messageQueues.addAll(Collections.nCopies(getNetSize(), (TransferQueue<Object>) null));
         if (getId() == 0) {
             System.out.println("----------------------------------------");
         }
@@ -97,9 +106,9 @@ public abstract class RoutingAlgo extends Algorithm implements Visitor {
             return null; //TODO exception ?
         }
         synchronized (messageQueues) {
-            BlockingQueue<Object> queue = messageQueues.get(node);
+            TransferQueue<Object> queue = messageQueues.get(node);
             if (queue == null) {
-                queue = new LinkedBlockingQueue<>();
+                queue = new LinkedTransferQueue<>();
                 messageQueues.set(node, queue);
             }
             return queue;
@@ -122,13 +131,27 @@ public abstract class RoutingAlgo extends Algorithm implements Visitor {
         }
     }
 
+    @Override
+    protected Message receive(Door door) {
+        Message msg = receive(door, new Criterion() {
+            @Override
+            public boolean isMatchedBy(Object o) {
+                return !IS_ROUTING_MESSAGE.isMatchedBy(o);
+            }
+        });
+        if (msg != null) {
+            logger.info("Receive from door " + door.getNum() + ": " + msg.toString());
+        }
+        return msg;
+    }
+
     public synchronized Message receive(Door door, Criterion criterion) {
         this.proc.runningControl();
         Message msg;
         try {
             msg = this.proc.getNextMessage(door, criterion);
             if (msg != null) {
-                logger.info("Receive from " + door.getNum() + ": " + msg.toString());
+                logger.info("Receive from door " + door.getNum() + ": " + msg.toString());
             }
             return msg;
         } catch (InterruptedException e) {
@@ -183,7 +206,7 @@ public abstract class RoutingAlgo extends Algorithm implements Visitor {
 
     @Override
     protected boolean sendTo(int door, Message msg) {
-        logger.info("Send to " + door + ": " + msg.toString());
+        logger.info("Send to door " + door + ": " + msg.toString());
         return super.sendTo(door, msg);
     }
 
@@ -206,7 +229,7 @@ public abstract class RoutingAlgo extends Algorithm implements Visitor {
             }
         }
         if (updated) {
-            scheduledThreadPool.schedule(new SpreadLinkStateUpdate(), 750, TimeUnit.MILLISECONDS);
+            scheduledThreadPool.schedule(new SpreadLinkStateUpdate(), SPREADLINKSTATEUPDATE_LATENCY, TimeUnit.MILLISECONDS);
         }
     }
 
@@ -241,7 +264,7 @@ public abstract class RoutingAlgo extends Algorithm implements Visitor {
             }
         }
         if (updated) {
-            scheduledThreadPool.schedule(new SpreadLinkStateUpdate(), 750, TimeUnit.MILLISECONDS);
+            scheduledThreadPool.schedule(new SpreadLinkStateUpdate(), SPREADLINKSTATEUPDATE_LATENCY, TimeUnit.MILLISECONDS);
         }
     }
 
@@ -287,10 +310,8 @@ public abstract class RoutingAlgo extends Algorithm implements Visitor {
             while (!stop) {
                 try {
                     Door door = new Door();
-                    Criterion isRoutingMessage = o -> o instanceof MessagePacket &&
-                            ((MessagePacket) o).message() instanceof RoutingMessage;
 
-                    RoutingMessage message = (RoutingMessage) receive(door, isRoutingMessage);
+                    RoutingMessage message = (RoutingMessage) receive(door, IS_ROUTING_MESSAGE);
                     if (message != null) {
                         message.accept(RoutingAlgo.this, door);
                         //System.out.printf("i'm %d and i have this table: %s\n", getId(), routingTable);

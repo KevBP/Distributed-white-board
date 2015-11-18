@@ -12,41 +12,45 @@ public class TokenDataTable implements Iterable<Integer> {
         formesTable = new SparseArray<>();
     }
 
-    public List<Forme> getFormes(int idx) {
-        return Collections.unmodifiableList(formesTable.get(idx));
+    public List<Forme> getFormes(int node) {
+        return Collections.unmodifiableList(formesTable.get(node));
     }
 
-    private List<Forme> getFormesOrCreate(int idx) {
-        List<Forme> formes = formesTable.get(idx);
+    private List<Forme> getFormesOrCreate(int node) {
+        List<Forme> formes = formesTable.get(node);
         if (formes == null) {
             formes = new ArrayList<>();
-            formesTable.put(idx, formes);
+            formesTable.put(node, formes);
         }
         return formes;
     }
 
-    public void addForme(int idx, Forme forme) {
-        List<Forme> formes = getFormesOrCreate(idx);
+    public void addForme(int node, Forme forme) {
+        List<Forme> formes = getFormesOrCreate(node);
         formes.add(forme);
     }
 
-    public void addFormes(int idx, Iterable<Forme> formes) {
-        List<Forme> currentFormes = getFormesOrCreate(idx);
+    public void addFormes(int node, Iterable<Forme> formes) {
+        List<Forme> currentFormes = getFormesOrCreate(node);
         for (Forme forme : formes) {
             currentFormes.add(forme);
         }
     }
 
-    public void putFormes(int idx, Iterable<Forme> formes) {
-        List<Forme> currentFormes = getFormesOrCreate(idx);
+    public void putFormes(int node, Iterable<Forme> formes) {
+        List<Forme> currentFormes = getFormesOrCreate(node);
         currentFormes.clear();
         for (Forme forme : formes) {
             currentFormes.add(forme);
         }
     }
 
-    public void removeFormes(int idx) {
-        formesTable.remove(idx);
+    public int getIndex(int node) {
+        return formesTable.indexOfKey(node);
+    }
+
+    public void removeFormes(int node) {
+        formesTable.remove(node);
     }
 
     @Override
