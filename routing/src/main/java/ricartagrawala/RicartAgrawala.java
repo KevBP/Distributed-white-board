@@ -23,9 +23,10 @@ public class RicartAgrawala extends RoutingAlgo implements FormePaintedListener 
     private final Object tableauLock = new Object();
     private final AtomicBoolean waitForCritical = new AtomicBoolean();
     private final AtomicInteger waitingRelCount = new AtomicInteger(1);
+    private final List<Integer> waitingNodes = new ArrayList<>();
     private int h;
     private int hSC;
-    private List<Integer> waitingNode;
+    ;
     private TableauBlancUI tableau;
     private List<Forme> toPaintQueue = new ArrayList<>();
 
@@ -33,7 +34,6 @@ public class RicartAgrawala extends RoutingAlgo implements FormePaintedListener 
     public void setup() {
         h = 0;
         hSC = 0;
-        waitingNode = new ArrayList<>();
         SwingUtilities.invokeLater(new Runnable() {
             public void run() {
                 synchronized (tableauLock) {
@@ -76,18 +76,25 @@ public class RicartAgrawala extends RoutingAlgo implements FormePaintedListener 
             REQMessage reqMessage = (REQMessage) message.getData();
             int hd = reqMessage.getH();
             h = Math.max(hd, h);
-            if (waitForCritical.get() && ((hSC < hd) || ((hSC == hd) && getId() < message.getFrom()))) {
-                waitingNode.add(message.getFrom());
-            } else {
+            boolean await = false;
+            synchronized (waitingNodes) {
+                if (waitForCritical.get() && ((hSC < hd) || ((hSC == hd) && getId() < message.getFrom()))) {
+                    waitingNodes.add(message.getFrom());
+                    await = true;
+                }
+            }
+            if (!await) {
                 sendToNode(message.getFrom(), new RELMessage());
             }
         } else if (message.getData() instanceof RELMessage) { // Rule 3
             if (waitingRelCount.decrementAndGet() == 1) {
                 criticalSection();
-                for (Integer node : waitingNode) {
-                    sendToNode(node, new RELMessage());
+                synchronized (waitingNodes) {
+                    for (Integer node : waitingNodes) {
+                        sendToNode(node, new RELMessage());
+                    }
+                    waitForCritical.set(false);
                 }
-                waitForCritical.set(false);
             }
         } else if (message.getData() instanceof DataMessage) {
             @SuppressWarnings("unchecked")

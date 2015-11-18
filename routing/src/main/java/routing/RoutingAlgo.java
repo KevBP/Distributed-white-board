@@ -35,7 +35,7 @@ public abstract class RoutingAlgo extends Algorithm implements Visitor {
 
     @Override
     public Collection<MessageType> getMessageTypeList() {
-        Collection typesList = new LinkedList();
+        List<MessageType> typesList = new LinkedList<>();
         typesList.add(RoutingMessage.ROUTING_MESSAGE_TYPE);
         return typesList;
     }

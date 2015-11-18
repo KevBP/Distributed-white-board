@@ -1,15 +1,28 @@
 package lelann;
 
 /**
- * Created by maxime on 02/11/2015.
+ *
+ * @param <T> le type de donnée transporté par le token
  */
 public class Token<T> {
+    /**
+     * Les données que le token transporte.
+     */
     private final T data;
 
+    /**
+     * Initialise le token avec la valeur passée en parametre.
+     *
+     * @param data
+     */
     public Token(T data) {
         this.data = data;
     }
 
+    /**
+     *
+     * @return
+     */
     public T getData() {
         return data;
     }
