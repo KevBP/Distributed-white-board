@@ -16,15 +16,16 @@ import java.util.concurrent.TransferQueue;
 public class LeLannGui extends LeLann<TokenDataTable> implements FormePaintedListener {
     public static final boolean STRICT_DRAWING_ORDER = false;
     /**
-     * Les formes peintes par l'utilisateurs.
-     * <br/> Cette queue est vidÃ©e lorsque le noeud a le token
-     */
-    private final TransferQueue<Forme> paintQueue = new LinkedTransferQueue<>();
-    /**
      * L'instance du tableau.
      * <br/> Initialiser en asynchrone.
      */
     private TableauBlanc tableau;
+
+    /**
+     * Les formes peintes par l'utilisateurs.
+     * <br/> Cette queue est vidée lorsque le noeud a le token
+     */
+    private final TransferQueue<Forme> paintQueue = new LinkedTransferQueue<>();
 
     @Override
     public void setup() {

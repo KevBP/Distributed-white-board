@@ -5,9 +5,9 @@ import routing.message.SendToMessage;
 
 /**
  * Algorithme de LeLann sur un reseau quelconque.
- * <br/> Utilise le systeme de route implÃ©mentÃ© dans {@link RoutingAlgo}
+ * <br/> Utilise le systeme de route implémenté dans {@link RoutingAlgo}
  *
- * @param <T> le type de donnÃ©e contenue dans le token.
+ * @param <T> le type de donnée contenue dans le token.
  * @see RoutingAlgo
  */
 public abstract class LeLann<T> extends RoutingAlgo {
@@ -36,7 +36,7 @@ public abstract class LeLann<T> extends RoutingAlgo {
     }
 
     /**
-     * Methode pour crÃ©er et initialiser le 1er {@link Token}.
+     * Methode pour créer et initialiser le 1er {@link Token}.
      * @return un {@link Token} a utiliser
      */
     public abstract Token<T> initToken();
@@ -59,7 +59,7 @@ public abstract class LeLann<T> extends RoutingAlgo {
     /**
      * La section critique.
      * <br/> Cette methode doit retourner un {@link Token} qui sera envoyer au prochain noeud du reseau.
-     * @param token le {@link Token} reÃ§ut
+     * @param token le {@link Token} reçut
      * @return le {@link Token} a envoyer au prochain noeud du reseau
      */
     public abstract Token criticalSection(Token<T> token);
