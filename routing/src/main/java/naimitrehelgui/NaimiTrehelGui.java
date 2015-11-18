@@ -43,6 +43,7 @@ public class NaimiTrehelGui extends RoutingAlgo implements FormePaintedListener 
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public void onMessage(SendToMessage message) {
         if (message.getData() instanceof REQMessage) { // Rule 3
             if (owner == -1) {

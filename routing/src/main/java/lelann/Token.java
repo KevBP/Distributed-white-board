@@ -2,16 +2,16 @@ package lelann;
 
 /**
  *
- * @param <T> le type de donnée transporté par le token
+ * @param <T> le type de donnÃ©e transportÃ© par le token
  */
 public class Token<T> {
     /**
-     * Les données que le token transporte.
+     * Les donnÃ©es que le token transporte.
      */
     private final T data;
 
     /**
-     * Initialise le token avec la valeur passée en parametre.
+     * Initialise le token avec la valeur passÃ©e en parametre.
      *
      * @param data
      */
