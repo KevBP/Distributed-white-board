@@ -23,7 +23,7 @@ public class LeLannGui extends LeLann<TokenDataTable> implements FormePaintedLis
 
     /**
      * Les formes peintes par l'utilisateurs.
-     * <br/> Cette queue est vidée lorsque le noeud a le token
+     * <br/> Cette queue est vidÃ©e lorsque le noeud a le token
      */
     private final TransferQueue<Forme> paintQueue = new LinkedTransferQueue<>();
 
